@@ -18,6 +18,7 @@ var flag = false;
 //texture variables
 var texVertArray = [];
 var texture;
+
 var texVertices = [
 	vec2(0, 0),
     vec2(0, 1),
@@ -26,14 +27,15 @@ var texVertices = [
     ];
 
 //lighitng variables
-var lightPosition = vec4(0.0, 1.0, 1.0, 0.0 );
+var lightPosition = vec4(1.0, 1.0, 1.0, 0.0 );
 var lightAmbient = vec4(0.2, 0.2, 0.2, 1.0 );
 var lightDiffuse = vec4( 1.0, 1.0, 1.0, 1.0 );
-var lightSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
+var lightSpecular = vec4(1.0, 1.0, 1.0, 1.0);
+
 var materialAmbient = vec4( 1.0, 1.0, 1.0, 1.0 );
-var materialDiffuse = vec4( 1.0, 0.1, 1.0, 1.0);
+var materialDiffuse = vec4( 1.0, 1.0, 1.0, 1.0);
 var materialSpecular = vec4( 0.8, 0.8, 0.8, 1.0 );
-var materialShininess = 200.0;
+var materialShininess = 500.0;
 var ambientColor, diffuseColor, specularColor;
 
 var theta = [0,0,0];
@@ -80,20 +82,16 @@ window.onload = function init()
 	var nBuffer = gl.createBuffer();
     gl.bindBuffer( gl.ARRAY_BUFFER, nBuffer );
     gl.bufferData( gl.ARRAY_BUFFER, flatten(normalsArray), gl.STATIC_DRAW );
-
     var vNormal = gl.getAttribLocation( program, "vNormal" );
     gl.vertexAttribPointer( vNormal, 3, gl.FLOAT, false, 0, 0 );
     gl.enableVertexAttribArray( vNormal );
-
-	 
 	//poistions buffer
 	var vBuffer = gl.createBuffer();
     gl.bindBuffer( gl.ARRAY_BUFFER, vBuffer );
     gl.bufferData( gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW );
-
 	var vPosition = gl.getAttribLocation( program, "vPosition" );
 	gl.vertexAttribPointer( vPosition, 4 , gl.FLOAT, false, 0, 0 );
-	gl.enableVertexAttribArray( vPosition );
+	gl.enableVertexAttribArray(vPosition);
 
 	//
 	// Texture Buffers
@@ -101,15 +99,15 @@ window.onload = function init()
 	var tBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER,flatten(texVertArray), gl.STATIC_DRAW);
-
 	var vTexCoord = gl.getAttribLocation(program, "vTexCoord");
 	gl.vertexAttribPointer(vTexCoord,2,gl.FLOAT,false,0,0);
 	gl.enableVertexAttribArray(vTexCoord);
-
 	//
 	// Initalize Texture
-	//
-	createTexture();
+    //
+	var texImage = document.getElementById("img");
+
+	createTexture(texImage);
 
 	//lighting calcs
 	ambientProduct = mult(lightAmbient, materialAmbient);
@@ -136,6 +134,93 @@ window.onload = function init()
 
 	render();
 };
+function createTexture(texImage) {
+    texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, texImage);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.uniform1i(gl.getUniformLocation(program, "texture"), 0);
+}
+
+
+function colorShape()//mimics colorcube
+{
+    quad(1, 0, 3, 2);
+    quad(2, 3, 7, 6);
+    quad(3, 0, 4, 7);
+    quad(6, 5, 1, 2);
+    quad(4, 5, 6, 7);
+    quad(5, 4, 0, 1);
+}
+
+function quad(a, b, c, d) {
+    //normals
+    var t1 = subtract(vertices[b], vertices[a]);
+    var t2 = subtract(vertices[c], vertices[b]);
+    var normal = cross(t1, t2);
+    var normal = vec3(normal);
+
+    //push vertices
+    points.push(vertices[a]);
+    normalsArray.push(normal);
+    texVertArray.push(texVertices[0]);
+
+    points.push(vertices[b]);
+    normalsArray.push(normal);
+    texVertArray.push(texVertices[1]);
+
+    points.push(vertices[c]);
+    normalsArray.push(normal);
+    texVertArray.push(texVertices[2]);
+
+    points.push(vertices[a]);
+    normalsArray.push(normal);
+    texVertArray.push(texVertices[0]);
+
+    points.push(vertices[c]);
+    normalsArray.push(normal);
+    texVertArray.push(texVertices[2]);
+
+    points.push(vertices[d]);
+    normalsArray.push(normal);
+    texVertArray.push(texVertices[3]);
+}
+
+
+function HandleKeys(event) {
+    if (event.keyCode == 37)//left arrow key
+    {
+        axis = yAxis;
+        dir = 1;
+        console.log("left arrow pressed")
+
+    }
+    else if (event.keyCode == 39)//right arrow key
+    {
+        axis = yAxis;
+        dir = -1;
+        console.log("right arrow pressed")
+
+    }
+    else if (event.keyCode == 38)//up arrow key
+    {
+        axis = xAxis;
+        dir = 1;
+        console.log("up arrow pressed")
+
+    }
+    else if (event.keyCode == 40)//down arrow key
+    {
+        axis = xAxis;
+        dir = -1;
+        console.log("down arrow pressed")
+
+    }
+}
+
 
 function render()
 {
@@ -154,108 +239,10 @@ function render()
 
 	gl.uniformMatrix4fv(gl.getUniformLocation(program,"modelView"), false, flatten(modelView) );
 	
-	gl.drawArrays(gl.TRIANGLES,0 ,numVeritces);
+	gl.drawArrays(gl.TRIANGLES, 0 ,numVeritces);
 
 	requestAnimFrame(render);
 }
-
-function createTexture()
-{
-	var texImage = document.getElementById("img");
-	
-	texture = gl.createTexture();
-
-    gl.bindTexture( gl.TEXTURE_2D, texture );
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, texImage );
-    gl.generateMipmap( gl.TEXTURE_2D );
-    gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR );
-    gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST );
-    gl.uniform1i(gl.getUniformLocation(program, "texture"), 0);
-    gl.bindTexture( gl.TEXTURE_2D, null );
-    
-} 
-
-function colorShape()//mimics colorcube
-{
-	quad( 1, 0, 3, 2 );
-    quad( 2, 3, 7, 6 );
-    quad( 3, 0, 4, 7 );
-    quad( 6, 5, 1, 2 );
-    quad( 4, 5, 6, 7 );
-    quad( 5, 4, 0, 1 );
-}
-
-function quad(a,b,c,d)
-{
-	//normals
-	var t1 = subtract(vertices[b], vertices[a]);
-    var t2 = subtract(vertices[c], vertices[b]);
-    var normal = cross(t1, t2);
-    var normal = vec3(normal);
-
-	//push vertices
-	points.push(vertices[a]);
-	normalsArray.push(normal); 
-	texVertArray.push(texVertices[0]);
-
-	points.push(vertices[b]);
-	normalsArray.push(normal);
-	texVertArray.push(texVertices[1]); 
-
-	points.push(vertices[c]);
-	normalsArray.push(normal); 
-	texVertArray.push(texVertices[2]);
-
-	points.push(vertices[a]);
-	normalsArray.push(normal); 
-	texVertArray.push(texVertices[0]);
-
-	points.push(vertices[c]);
-	normalsArray.push(normal);
-	texVertArray.push(texVertices[2]); 
-
-	points.push(vertices[d]);
-	normalsArray.push(normal);
-	texVertArray.push(texVertices[3]);
-}
-
-
-function HandleKeys(event)
-{
-	if (event.keyCode == 37)//left arrow key
-	{
-		axis = yAxis;
-		dir = 1;
-		console.log("left arrow pressed")
-		
-	}
-	else if (event.keyCode == 39)//right arrow key
-	{
-		axis = yAxis;
-		dir = -1;
-		console.log("right arrow pressed")
-		
-	}
-	else if (event.keyCode == 38)//up arrow key
-	{
-		axis = xAxis;
-		dir = 1;
-		console.log("up arrow pressed")
-		
-	}
-	else if (event.keyCode == 40)//down arrow key
-	{
-		axis = xAxis;
-		dir = -1;
-		console.log("down arrow pressed")
-		
-	}
-}
-
-
-
-
 
 
 
